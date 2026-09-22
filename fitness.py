@@ -1,66 +1,36 @@
-import os
-import json
-from dotenv import load_dotenv
+import streamlit as st
 import google.generativeai as genai
 
-import streamlit as st
-
-# Configure Gemini
-genai.configure(
-    api_key=st.secrets["GEMINI_API_KEY"]
-)
-
-model = genai.GenerativeModel("gemini-1.5-flash")
+# ==============================
+# Page Configuration
+# ==============================
 
 st.set_page_config(
     page_title="Gym Trainer AI",
-    page_icon="🏋️"
+    page_icon="🏋️",
+    layout="wide"
 )
 
-st.title("🏋️ Gym Trainer AI")
+# ==============================
+# Gemini Configuration
+# ==============================
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-prompt = st.chat_input("Ask your fitness question")
-
-if prompt:
-
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.error(
+        "Gemini API Key not found. Add GEMINI_API_KEY in Streamlit Secrets."
     )
+    st.stop()
 
-    with st.chat_message("user"):
-        st.markdown(prompt)
+genai.configure(api_key=GEMINI_API_KEY)
 
-    try:
-        response = model.generate_content(prompt)
-
-        answer = response.text
-
-        with st.chat_message("assistant"):
-            st.markdown(answer)
-
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": answer
-            }
-        )
-
-    except Exception as e:
-        st.error(str(e))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # ==============================
 # System Prompt
 # ==============================
+
 SYSTEM_PROMPT = """
 You are Gym Trainer AI.
 
@@ -94,91 +64,71 @@ Always respond in this format:
 💪 Recovery Recommendations
 
 ✅ Action Plan
+
+Only provide fitness, gym, workout, nutrition,
+recovery and health related guidance.
 """
 
-DEFAULT_MESSAGES = [
-    {
-        "role": "system",
-        "content": SYSTEM_PROMPT
-    }
-]
+# ==============================
+# Session State
+# ==============================
 
-# ==============================
-# Load History
-# ==============================
-if os.path.exists(history_file):
-    try:
-        with open(history_file, "r", encoding="utf-8") as f:
-            messages = json.load(f)
-    except Exception:
-        messages = DEFAULT_MESSAGES.copy()
-else:
-    messages = DEFAULT_MESSAGES.copy()
-
-# ==============================
-# Save History
-# ==============================
-def save_history():
-    with open(history_file, "w", encoding="utf-8") as f:
-        json.dump(messages, f, indent=2, ensure_ascii=False)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ==============================
 # Sidebar
 # ==============================
+
 with st.sidebar:
-    st.header("Settings")
+    st.title("⚙️ Settings")
 
     if st.button("🗑 Clear Chat"):
-        messages = DEFAULT_MESSAGES.copy()
-
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(messages, f, indent=2)
-
+        st.session_state.messages = []
         st.rerun()
 
 # ==============================
-# Display Chat History
+# Main UI
 # ==============================
-for msg in messages:
-    if msg["role"] == "system":
-        continue
 
+st.title("🏋️ Gym Trainer AI")
+st.caption("Personal Fitness & Nutrition Assistant")
+
+# Show Chat History
+
+for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # ==============================
 # Chat Input
 # ==============================
+
 prompt = st.chat_input("Ask your fitness question...")
 
 if prompt:
 
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    messages.append(
+    st.session_state.messages.append(
         {
             "role": "user",
             "content": prompt
         }
     )
 
-    # Build conversation context
-    conversation = ""
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    for msg in messages:
+    conversation = SYSTEM_PROMPT + "\n\n"
+
+    for msg in st.session_state.messages:
         role = msg["role"]
-        content = msg["content"]
 
-        if role == "system":
-            conversation += f"System: {content}\n\n"
-        elif role == "user":
-            conversation += f"User: {content}\n\n"
+        if role == "user":
+            conversation += f"User: {msg['content']}\n"
+
         elif role == "assistant":
-            conversation += f"Assistant: {content}\n\n"
+            conversation += f"Assistant: {msg['content']}\n"
 
-    # Generate response
     with st.chat_message("assistant"):
 
         with st.spinner("Generating response..."):
@@ -190,14 +140,12 @@ if prompt:
 
                 st.markdown(answer)
 
-                messages.append(
+                st.session_state.messages.append(
                     {
                         "role": "assistant",
                         "content": answer
                     }
                 )
-
-                save_history()
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
