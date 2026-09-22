@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
 
 st.set_page_config(
@@ -16,9 +16,7 @@ except Exception:
     )
     st.stop()
 
-genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key = GEMINI_API_KEY)
 
 # ==============================
 # System Prompt
@@ -127,7 +125,7 @@ if prompt:
         with st.spinner("Generating response..."):
 
             try:
-                response = model.generate_content(conversation)
+                response = client.models.generate_content(model = 'gemini-flash-lite-latest', contents=prompt)
 
                 answer = response.text
 
