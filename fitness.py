@@ -1,19 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
 
-# ==============================
-# Page Configuration
-# ==============================
 
 st.set_page_config(
     page_title="Gym Trainer AI",
     page_icon="🏋️",
     layout="wide"
 )
-
-# ==============================
-# Gemini Configuration
-# ==============================
 
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
