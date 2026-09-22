@@ -58,8 +58,6 @@ if prompt:
     except Exception as e:
         st.error(str(e))
 
-history_file = f"history_{st.session_state.user_id}.json"
-
 # ==============================
 # System Prompt
 # ==============================
