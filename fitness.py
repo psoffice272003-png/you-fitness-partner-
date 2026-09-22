@@ -1,43 +1,62 @@
 import os
 import json
-import streamlit as st
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# ==============================
-# Load Environment Variables
-# ==============================
-load_dotenv()
+import streamlit as st
 
-GEMINI_API_KEY = "AQ.Ab8RN6LBZ-Xd1PUpZoQCnVhyXnqssm__kwnggbridjgcEPkXDQ"
-
-if not GEMINI_API_KEY:
-    st.error("Gemini API Key not found in .env file")
-    st.stop()
-
-# ==============================
 # Configure Gemini
-# ==============================
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(
+    api_key=st.secrets["GEMINI_API_KEY"]
+)
 
-model = genai.GenerativeModel("gemini-flash-lite-latest")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-# ==============================
-# Page Configuration
-# ==============================
 st.set_page_config(
     page_title="Gym Trainer AI",
-    page_icon="🏋️",
-    layout="wide"
+    page_icon="🏋️"
 )
 
 st.title("🏋️ Gym Trainer AI")
 
-# ==============================
-# User Session
-# ==============================
-if "user_id" not in st.session_state:
-    st.session_state.user_id = "user_1"
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+prompt = st.chat_input("Ask your fitness question")
+
+if prompt:
+
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": prompt
+        }
+    )
+
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    try:
+        response = model.generate_content(prompt)
+
+        answer = response.text
+
+        with st.chat_message("assistant"):
+            st.markdown(answer)
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": answer
+            }
+        )
+
+    except Exception as e:
+        st.error(str(e))
 
 history_file = f"history_{st.session_state.user_id}.json"
 
