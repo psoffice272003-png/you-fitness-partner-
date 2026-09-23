@@ -1,175 +1,100 @@
 import streamlit as st
 from google import genai
-from google.genai import types
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
-
+# ----------------------
+# Page Configuration
+# ----------------------
 st.set_page_config(
-    page_title="Gym Trainer AI",
-    page_icon="🏋️",
+    page_title="Fitness & Health AI Coach",
+    page_icon="💪",
     layout="wide"
 )
 
-# =========================================================
-# GEMINI API
-# =========================================================
+st.title("💪 Fitness & Health AI Coach")
+st.write("Ask me anything about fitness, nutrition, workouts, muscle gain, weight loss, and healthy living.")
 
-try:
-    GEMINI_API_KEY = "AQ.Ab8RN6LBZ-Xd1PUpZoQCnVhyXnqssm__kwnggbridjgcEPkXDQ"
-except Exception:
-    st.error(
-        "Gemini API Key not found. "
-        "Add GEMINI_API_KEY in Streamlit Secrets."
-    )
-    st.stop()
+# ----------------------
+# Sidebar
+# ----------------------
+st.sidebar.title("Settings")
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+api_key = 'AQ.Ab8RN6LBZ-Xd1PUpZoQCnVhyXnqssm__kwnggbridjgcEPkXDQ"'
 
-# =========================================================
-# SYSTEM PROMPT
-# =========================================================
+st.sidebar.markdown("---")
+st.sidebar.info(
+    """
+    Examples:
+    - Create a workout plan
+    - Help me lose weight
+    - Calculate protein needs
+    - Muscle building tips
+    - Healthy diet suggestions
+    """
+)
 
-SYSTEM_PROMPT = """
-You are Gym Trainer AI.
-
-You specialize in:
-- Strength Training
-- Muscle Building
-- Fat Loss
-- Nutrition
-- Recovery
-- Sports Performance
-
-When information is missing, ask for:
-- Age
-- Gender
-- Height
-- Weight
-- Goal
-- Experience
-- Equipment
-- Diet Preference
-- Injuries
-
-Always respond using this format:
-
-🎯 Goal Assessment
-
-🏋️ Training Recommendation
-
-🥗 Nutrition Guidance
-
-💪 Recovery Recommendations
-
-✅ Action Plan
-
-Only provide fitness, gym, workout, nutrition,
-recovery and health-related guidance.
-
-Do not diagnose medical conditions.
-
-If the user describes a serious injury,
-medical emergency, severe symptoms, or
-other medical concerns, recommend consulting
-a qualified healthcare professional.
-"""
-
-# =========================================================
-# SESSION STATE
-# =========================================================
-
+# ----------------------
+# Chat History
+# ----------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-# =========================================================
-# SIDEBAR
-# =========================================================
-
-with st.sidebar:
-    st.title("⚙️ Settings")
-
-    if st.button("🗑 Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-# =========================================================
-# MAIN UI
-# =========================================================
-
-st.title("🏋️ Gym Trainer AI")
-st.caption("Personal Fitness & Nutrition Assistant")
-
-# =========================================================
-# CHAT HISTORY
-# =========================================================
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# =========================================================
-# CHAT INPUT
-# =========================================================
+# ----------------------
+# Chat Input
+# ----------------------
+user_input = st.chat_input("Ask a fitness question...")
 
-prompt = st.chat_input("Ask your fitness question...")
+if user_input:
 
-if prompt:
+    if not api_key:
+        st.error("Please enter your Gemini API Key.")
+        st.stop()
 
-    # Save and display user message
     st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
+        {"role": "user", "content": user_input}
     )
 
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(user_input)
 
-    # Build Gemini conversation history
-    conversation = []
+    try:
+        client = genai.Client(api_key=api_key)
 
-    for message in st.session_state.messages:
-        role = "user" if message["role"] == "user" else "model"
+        system_prompt = """
+You are an expert fitness and health coach.
 
-        conversation.append(
-            types.Content(
-                role=role,
-                parts=[
-                    types.Part.from_text(
-                        text=message["content"]
-                    )
-                ]
-            )
+You help users with:
+- Workout plans
+- Weight loss
+- Muscle gain
+- Nutrition
+- Cardio training
+- Strength training
+- Healthy lifestyle habits
+
+Rules:
+- Give professional advice.
+- Use bullet points whenever possible.
+- Be motivating and supportive.
+- If a question is medical, advise consulting a healthcare professional.
+"""
+
+        response = client.models.generate_content(
+            model="gemini-flash-lite-latest",
+            contents=f"{system_prompt}\n\nUser Question: {user_input}"
         )
 
-    # Generate response
-    with st.chat_message("assistant"):
-        with st.spinner("🏋️ Your trainer is thinking..."):
-            try:
-                response = client.models.generate_content(
-                    model="gemini-flash-lite-latest",
-                    contents=conversation,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT
-                    )
-                )
+        answer = response.text
 
-                answer = response.text
+        with st.chat_message("assistant"):
+            st.markdown(answer)
 
-                if not answer:
-                    answer = "I couldn't generate a response. Please try again."
+        st.session_state.messages.append(
+            {"role": "assistant", "content": answer}
+        )
 
-                st.markdown(answer)
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": answer
-                    }
-                )
-
-            except Exception as e:
-                st.error(f"Gemini API Error:\n\n{str(e)}")
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
